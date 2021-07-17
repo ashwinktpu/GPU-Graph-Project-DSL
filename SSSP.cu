@@ -8,7 +8,7 @@ __global__ void SSSP_Kernel(int * gpu_OA , int * gpu_edgeList , int* weight, int
 
 unsigned int id = threadIdx.x + (blockDim.x * blockIdx.x);
  
- if(id ==0  || id ==1){
+
  for (int edge = gpu_OA[id]; edge < gpu_OA[id+1]; edge ++) 
  {
          //printf("id= %d tid=%d ",gpu_OA[id],gpu_OA[id+1]);
@@ -35,7 +35,7 @@ unsigned int id = threadIdx.x + (blockDim.x * blockIdx.x);
             //omp_unset_lock(&(lock[nbr]));
           }
    }
-   }
+   
 
 
 } 
