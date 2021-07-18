@@ -8,35 +8,36 @@ __global__ void SSSP_Kernel(int * gpu_OA , int * gpu_edgeList , int* weight, int
 
 unsigned int id = threadIdx.x + (blockDim.x * blockIdx.x);
  
-
+ if (id ==0 || id ==1) {
  for (int edge = gpu_OA[id]; edge < gpu_OA[id+1]; edge ++) 
  {
-         //printf("id= %d tid=%d ",gpu_OA[id],gpu_OA[id+1]);
           int nbr = gpu_edgeList[edge] ;
-          printf("nbrr=%d ",nbr);
           int e = edge;
-          int dist_new = gpu_dist[id] + weight[e];
+          int dist_new;
           
-           if (gpu_dist[id] == MAX_VAL){
-                dist_new = MAX_VAL;
-            }
-            
-          if (gpu_dist[nbr] > dist_new)
+           dist_new = gpu_dist[id] + weight[e];
+          
+          if ( gpu_dist[id] != MAX_VAL  && gpu_dist[nbr] > dist_new)
           {
             //bool modified_new = true;
            // omp_set_lock(&(lock[nbr])) ;
-            if (gpu_dist[nbr] > dist_new)
-            {
+           // if (gpu_dist[nbr] > dist_new)
+            //{
             
-              atomicMin(&gpu_dist[nbr] , dist_new);
+               atomicMin(&gpu_dist[nbr] , dist_new);
+               
+              // printf("%d  %d\n", gpu_dist[nbr],dist_new);
+             
+             
               //gpu_dist[nbr] = dist_new;
               //modified[nbr] = modified_new;
-            }
+            //}
             //omp_unset_lock(&(lock[nbr]));
+            
           }
    }
-   
 
+   }
 
 } 
 
@@ -96,7 +97,13 @@ void SSSP(int * OA , int * edgeList , int* cpu_edgeLen , int * dist , int src ,i
  // {
       //if (modified[id] == true ){
       //  modified[index] = false;
-      SSSP_Kernel<<<num_blocks , block_size>>>(gpu_OA,gpu_edgeList, gpu_edgeLen ,gpu_dist,src, V ,MAX_VAL);
+      
+      for (int i = 1; i <= V - 1; i++) 
+        {
+            SSSP_Kernel<<<num_blocks , block_size>>>(gpu_OA,gpu_edgeList, gpu_edgeLen ,gpu_dist,src, V ,MAX_VAL);
+            cudaDeviceSynchronize();
+        }
+      
    // }
     //bool modified_fp = false ;
    // for (int v = 0; v < V; v ++) 
@@ -132,7 +139,7 @@ void SSSP(int * OA , int * edgeList , int* cpu_edgeLen , int * dist , int src ,i
 // driver program to test above function
 int main(int argc , char ** argv)
 {
-  graph G("/home/ashwina/cuda/final/input4.txt");
+  graph G("/home/ashwina/cuda/final/input.txt");
   G.parseGraph();
    
   int V = G.num_nodes();
