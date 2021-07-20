@@ -4,7 +4,7 @@
   GunRock trace for roadNet CA
   </h1>
     
-  
+  ``` ruby
         Loading Matrix-market coordinate-formatted graph ...
   Reading meta data from /home/ashwina/gunrock/dataset/large/roadNet-CA/roadNet-CA.mtx.meta
   Reading edge lists from /home/ashwina/gunrock/dataset/large/roadNet-CA/roadNet-CA.mtx.coo_edge_pairs
@@ -51,5 +51,5 @@ First 40 distances of the reference CPU result.
  preprocess time: 197.449000 ms
  postprocess time: 10.353804 ms
  total time: 251.209974 ms
-
+```
     
