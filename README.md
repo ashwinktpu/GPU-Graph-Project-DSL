@@ -5,6 +5,9 @@
   </h3>
     
   ``` c++
+  ./bin/sssp market /home/ashwina/gunrock/dataset/large/roadNet-CA/roadNet-CA.mtx  --src=0
+
+  
   Loading Matrix-market coordinate-formatted graph ...
   Reading meta data from /home/ashwina/gunrock/dataset/large/roadNet-CA/roadNet-CA.mtx.meta
   Reading edge lists from /home/ashwina/gunrock/dataset/large/roadNet-CA/roadNet-CA.mtx.coo_edge_pairs
