@@ -4,8 +4,8 @@
   GunRock trace for roadNet CA
   </h1>
     
-  ``` ruby
-        Loading Matrix-market coordinate-formatted graph ...
+  ``` c++
+  Loading Matrix-market coordinate-formatted graph ...
   Reading meta data from /home/ashwina/gunrock/dataset/large/roadNet-CA/roadNet-CA.mtx.meta
   Reading edge lists from /home/ashwina/gunrock/dataset/large/roadNet-CA/roadNet-CA.mtx.coo_edge_pairs
 Reading from /home/ashwina/gunrock/dataset/large/roadNet-CA/roadNet-CA.mtx.coo_edge_pairs, typeId = 262, targetId = 262, length = 2766607
