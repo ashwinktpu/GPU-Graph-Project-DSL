@@ -1,7 +1,7 @@
 # GPU-Graph-Project-DSL
 
 <h3>
-  GunRock trace for roadNet CA
+  GunRock trace for roadNet CA (https://snap.stanford.edu/data/roadNet-CA.html)
   </h3>
     
   ``` c++
