@@ -1,3 +1,11 @@
+/*
+
+Tested for 2 million nodes
+
+
+*/
+
+
 #include <limits.h>
 #include <stdio.h>
 #include <cuda.h>
