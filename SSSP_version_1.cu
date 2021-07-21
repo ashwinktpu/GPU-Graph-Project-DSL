@@ -5,11 +5,12 @@ Tested for 2 million nodes
 
 */
 
-
 #include <limits.h>
 #include <stdio.h>
 #include <cuda.h>
 #include "graph.hpp"
+
+#include <sys/time.h>
 
 
 __global__ void SSSP_Kernel(int * gpu_OA , int * gpu_edgeList , int* weight, int * gpu_dist , int src ,int V, int MAX_VAL) {
@@ -24,6 +25,8 @@ unsigned int id = threadIdx.x + (blockDim.x * blockIdx.x);
           int dist_new;
           
            dist_new = gpu_dist[id] + weight[e];
+           
+           
           
           if ( gpu_dist[id] != MAX_VAL  && gpu_dist[nbr] > dist_new)
           {
@@ -45,13 +48,16 @@ unsigned int id = threadIdx.x + (blockDim.x * blockIdx.x);
           }
    }
 
-   
-
 } 
 
 void SSSP(int * OA , int * edgeList , int* cpu_edgeLen , int * dist , int src ,int V, int E)
 {
   int MAX_VAL = 2147483647 ;
+  
+  struct timeval t1, t2;
+  
+  clock_t start , end;
+  double gpu_time_use;
   
   int *gpu_edgeList;
   int *gpu_edgeLen;
@@ -106,11 +112,26 @@ void SSSP(int * OA , int * edgeList , int* cpu_edgeLen , int * dist , int src ,i
       //if (modified[id] == true ){
       //  modified[index] = false;
       
-      for (int i = 1; i <= V - 1; i++) 
+     // gettimeofday(&t1, 0);
+      
+      start = clock();
+      
+      for (int i = 0; i <= V - 1; i++) 
         {
             SSSP_Kernel<<<num_blocks , block_size>>>(gpu_OA,gpu_edgeList, gpu_edgeLen ,gpu_dist,src, V ,MAX_VAL);
             cudaDeviceSynchronize();
         }
+        
+        
+      end = clock();
+      //gettimeofday(&t2, 0);
+      
+      
+     gpu_time_use = ((double)(end-start)) /CLOCKS_PER_SEC;
+
+     printf("the time taken  is %f secs\n",gpu_time_use);
+     
+  
       
    // }
     //bool modified_fp = false ;
@@ -119,9 +140,8 @@ void SSSP(int * OA , int * edgeList , int* cpu_edgeLen , int * dist , int src ,i
     //finished = !modified_fp ;
   //}
   
-  
-  
    cudaMemcpy(dist,gpu_dist , sizeof(int) * (V), cudaMemcpyDeviceToHost);
+   
    
    printf("\n");
    
@@ -130,10 +150,13 @@ void SSSP(int * OA , int * edgeList , int* cpu_edgeLen , int * dist , int src ,i
    {
       printf("%d  %d\n", i, dist[i]);
    }
+   
  
-  char *outputfilename = "outputSG.txt";
+  char *outputfilename = "output.txt";
   FILE *outputfilepointer;
   outputfilepointer = fopen(outputfilename, "w");
+  
+  fprintf(outputfilepointer, "%d\n", gpu_time_use);
 
 
   for (int i = 0; i <V; i++)
@@ -147,7 +170,7 @@ void SSSP(int * OA , int * edgeList , int* cpu_edgeLen , int * dist , int src ,i
 // driver program to test above function
 int main(int argc , char ** argv)
 {
-  graph G("/home/ashwina/cuda/final/input.txt");
+  graph G("/home/ashwina/email-Eu-core.txt");
   G.parseGraph();
    
   int V = G.num_nodes();
