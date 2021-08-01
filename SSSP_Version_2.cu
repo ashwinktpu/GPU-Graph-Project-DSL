@@ -162,7 +162,7 @@ void SSSP(int * OA , int * edgeList , int* cpu_edgeLen , int * dist , int src ,i
 // driver program to test above function
 int main(int argc , char ** argv)
 {
-  graph G("/home/ashwina/cuda/final/input3.txt");
+  graph G("/home/ashwina/soc-LiveJournal1.txt");
   G.parseGraph();
    
   int V = G.num_nodes();
@@ -205,8 +205,21 @@ int main(int argc , char ** argv)
     int temp = edgeLen[i];
     cpu_edgeLen[i] = temp;
   }
+  
+  
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    float milliseconds = 0;
+    cudaEventRecord(start,0);
 
-  SSSP(OA,edgeList, cpu_edgeLen ,dist,src, V,E);
+    SSSP(OA,edgeList, cpu_edgeLen ,dist,src, V,E);
+    cudaDeviceSynchronize();
+  
+    cudaEventRecord(stop,0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    printf("Time taken by function to execute is: %.6f ms\n", milliseconds);
  
 
   return 0;
