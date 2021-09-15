@@ -1,9 +1,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<limits.h>
-#include<atomic>
 #include<cmath>
-#include<algorithm>
 #include<omp.h>
 #include"graph.hpp"
 
@@ -154,9 +152,6 @@ void Compute_PR(int * rev_OA, int * OA, int * cpu_srcList , float * node_pr , in
     rev_OA[i] = temp;
   }
   
-   for(int i=0; i<= V; i++) {
-   //printf("%d ", rev_OA[i]);
-  }
   printf("\n");
   
    for(int i=0; i< E; i++) {
@@ -164,9 +159,7 @@ void Compute_PR(int * rev_OA, int * OA, int * cpu_srcList , float * node_pr , in
     cpu_srcList[i] = temp;
   }
   
-  for(int i=0; i< E; i++) {
-   //printf("%d ", cpu_srcList[i]);
-  }
+ 
   printf("\n");
   
    for(int i=0; i<= V; i++) {
@@ -174,13 +167,5 @@ void Compute_PR(int * rev_OA, int * OA, int * cpu_srcList , float * node_pr , in
     OA[i] = temp;
   }
   
-  for(int i=0; i<= V; i++) {
-  // printf("%d ", OA[i]);
-  }
-  
   Compute_PR(rev_OA, OA, cpu_srcList , node_pr , V, E);
-
-  //Compute_PR(G,0.001,0.85,1,node_pr);
- 
-
 }
