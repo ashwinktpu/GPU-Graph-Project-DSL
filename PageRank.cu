@@ -2,7 +2,7 @@
 #include<stdlib.h>
 #include<limits.h>
 #include<cmath>
-#include<omp.h>
+#include<cuda.h>
 #include"graph.hpp"
 
 void __global__  Compute_PR_Kernel(int * gpu_rev_OA, int * gpu_OA, int * gpu_srcList , float * gpu_node_pr , int V, int E , float beta, float delta, int maxIter) 
