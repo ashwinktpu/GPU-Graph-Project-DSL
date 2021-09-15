@@ -5,7 +5,7 @@
 #include<cuda.h>
 #include"graph.hpp"
 
-void __global__  Compute_PR_Kernel(int * gpu_rev_OA, int * gpu_OA, int * gpu_srcList , float * gpu_node_pr , int V, int E , float beta, float delta, int maxIter) 
+ __global__  void Compute_PR_Kernel(int * gpu_rev_OA, int * gpu_OA, int * gpu_srcList , float * gpu_node_pr , int V, int E , float beta, float delta, int maxIter) 
 {
 
       unsigned int id = threadIdx.x + (blockDim.x * blockIdx.x);
