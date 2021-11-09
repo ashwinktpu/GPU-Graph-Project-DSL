@@ -2,41 +2,51 @@
 #include<stdlib.h>
 #include<limits.h>
 #include<cmath>
+#include<algorithm>
 #include<cuda.h>
 #include"graph.hpp"
 
+
+__device__ float diff ;
  __global__  void Compute_PR_Kernel(int * gpu_rev_OA, int * gpu_OA, int * gpu_srcList , float * gpu_node_pr , int V, int E , float beta, float delta, int maxIter) 
 {
-
+      diff =0.0f;
       unsigned int id = threadIdx.x + (blockDim.x * blockIdx.x);
-      float sum=0.0;
+      float sum=0.0f;
       int iterCount=0;
-      float diff;
+      
+      
+      
       if (id < V) 
       {
+      
 
       for(int edge= gpu_rev_OA[id] ;edge< gpu_rev_OA[id+1];edge++)
          {
+          
            int nbr=  gpu_srcList[edge];
            sum =sum + gpu_node_pr[nbr]/(gpu_OA[nbr+1]- gpu_OA[nbr]);
            
          }
-
+         
+       
          float val=(1-delta)/V + delta * sum;
          float temp = std::fabs(val-gpu_node_pr[id]);
+         atomicAdd(&diff,temp);
          gpu_node_pr[id]=val;
-         //printf("val = %f ",val);
+        
 }
+
 }
 
 
 void Compute_PR(int * rev_OA, int * OA, int * cpu_srcList , float * node_pr , int V, int E)
 {
   
-  int *gpu_rev_OA;
-  int *gpu_srcList;
-  int * gpu_OA;
-  float * gpu_node_pr;
+  int    *gpu_rev_OA;
+  int    *gpu_srcList;
+  int    * gpu_OA;
+  float  *gpu_node_pr;
   
   
   cudaMalloc( &gpu_rev_OA, sizeof(int) * (1+V) ); //rev_OA
@@ -78,26 +88,22 @@ void Compute_PR(int * rev_OA, int * OA, int * cpu_srcList , float * node_pr , in
   int maxIter = 100;
   
   int iterCount=0;
-  float diff;
-  
-  
- // cudaMemcpy(node_pr,gpu_node_pr , sizeof(float) * (V), cudaMemcpyDeviceToHost);
+  float diff_check;
  
   do
   {
-   diff=0.0;
   
-  Compute_PR_Kernel<<<num_blocks , block_size>>>(gpu_rev_OA, gpu_OA, gpu_srcList, gpu_node_pr , V,E,  0.001, 0.85, 1);
- // diff=diff+temp;
-  printf("iterCount %d diff %f\n",iterCount,diff);
+  Compute_PR_Kernel<<<num_blocks , block_size>>>(gpu_rev_OA, gpu_OA, gpu_srcList, gpu_node_pr , V,E,  0.001, 0.85, 100);
+  cudaDeviceSynchronize();
+  
+  cudaMemcpyFromSymbol(&diff_check, diff, sizeof(float));
+
+  printf("iterCount %d diff %f\n",iterCount,diff_check);
   iterCount=iterCount+1;
   
-  }while ((iterCount < maxIter));
+  }while ((diff_check>beta) &&(iterCount < maxIter));
   
-  printf("iteration took %d\n",iterCount);
-  
-  
-  
+  printf("total iteration took %d\n",iterCount);
   
   cudaMemcpy(node_pr,gpu_node_pr , sizeof(float) * (V), cudaMemcpyDeviceToHost);
   printf("\n");
@@ -105,7 +111,7 @@ void Compute_PR(int * rev_OA, int * OA, int * cpu_srcList , float * node_pr , in
   for (int i = 0; i <V; i++)
    {
       printf("%d  %0.9lf\n", i, node_pr[i]);
-   }
+  }
   
   //output
   char *outputfilename = "outputN.txt";
@@ -121,16 +127,16 @@ void Compute_PR(int * rev_OA, int * OA, int * cpu_srcList , float * node_pr , in
  int main()
 {
 
-  graph G("/home/ashwina/cuda/final/input4.txt");
+  graph G("/home/ashwina/cuda/final/input11.txt");
   G.parseGraph();
   
   int V = G.num_nodes();
   
-  printf("number pf nodes =%d",V);
+ // printf("number pf nodes =%d",V);
   
   int E = G.num_edges();
   
-  printf("number pf edges =%d",E);
+  //printf("number pf edges =%d",E);
   
   
 
@@ -152,6 +158,9 @@ void Compute_PR(int * rev_OA, int * OA, int * cpu_srcList , float * node_pr , in
     rev_OA[i] = temp;
   }
   
+   for(int i=0; i<= V; i++) {
+   //printf("%d ", rev_OA[i]);
+  }
   printf("\n");
   
    for(int i=0; i< E; i++) {
@@ -167,5 +176,10 @@ void Compute_PR(int * rev_OA, int * OA, int * cpu_srcList , float * node_pr , in
     OA[i] = temp;
   }
   
+  
   Compute_PR(rev_OA, OA, cpu_srcList , node_pr , V, E);
+
+  //Compute_PR(G,0.001,0.85,1,node_pr);
+ 
+
 }
