@@ -139,7 +139,7 @@ void Compute_PR(int * rev_OA, int * OA, int * cpu_srcList , float * node_pr , in
  int main()
 {
 
-  graph G("/home/ashwina/cuda/final/input11.txt");
+  graph G(argv[1]);
   G.parseGraph();
   
   int V = G.num_nodes();
