@@ -136,7 +136,7 @@ void Compute_PR(int * rev_OA, int * OA, int * cpu_srcList , float * node_pr , in
   }
  }
 
- int main()
+ int main(int argc , char ** argv)
 {
 
   graph G(argv[1]);
