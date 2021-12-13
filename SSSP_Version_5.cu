@@ -1,16 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>  //Please give a space before <  or "
+#include <limits.h>
 #include <cuda.h>
 #include <climits>
 #include "graph.hpp"
 
-// we need to push this to our library.cuda file
+// we need to push this inits to our library.cuda file
 template <typename T>
 __global__ void initKernel0(T* init_array, T id, T init_value) { // MOSTLY 1 thread kernel
   init_array[id]=init_value;
 }
-// we need to push this to our library.cuda file
+
+
 template <typename T>
 __global__ void initKernel1(unsigned V, T* init_array, T init_value) {
   unsigned id = threadIdx.x + blockDim.x * blockIdx.x;
@@ -18,7 +19,7 @@ __global__ void initKernel1(unsigned V, T* init_array, T init_value) {
     init_array[id]=init_value;
   }
 }
-// we need to push this to our library.cuda file
+
 template <typename T1, typename T2>
 __global__ void initKernel2( unsigned V, T1* init_array1, T1 init_value1, T2* init_array2, T2 init_value2)  {
   unsigned id = threadIdx.x + blockDim.x * blockIdx.x;
@@ -28,12 +29,11 @@ __global__ void initKernel2( unsigned V, T1* init_array1, T1 init_value1, T2* in
   }
 }
 
-
-
-__global__ void Compute_SSSP_kernel(int * gpu_offset_array , int * gpu_edge_list , int* gpu_weight, int * gpu_dist ,
-  /* int src , */ // src is never used below
+__global__ void Compute_SSSP_kernel(int * gpu_offset_array ,
+  int * gpu_edge_list ,
+  int* gpu_weight,
+  int * gpu_dist,
   int V,
-  /* int MAX_VAL , */ //saved 4 Bytes per thread!!
   bool * gpu_modified_prev,
   bool * gpu_modified_next,
   bool * gpu_finished)
@@ -43,22 +43,19 @@ __global__ void Compute_SSSP_kernel(int * gpu_offset_array , int * gpu_edge_list
   if (id < V)
   {
     if (gpu_modified_prev[id] ){
+      int dist_new;
       for (int edge = gpu_offset_array[id]; edge < gpu_offset_array[id+1]; edge ++)
       {
         int nbr = gpu_edge_list[edge] ;
         int e = edge;
-
-        int dist_new ;
         if(gpu_dist[id] != INT_MAX)
           dist_new = gpu_dist[v] + gpu_weight[e];
-        //~ int dist_new = gpu_dist[v] + gpu_weight[e];
+
         if (gpu_dist[nbr] > dist_new)
-        //~ if (gpu_dist[id] != MAX_VAL && gpu_dist[nbr] > dist_new)
         {
           atomicMin(&gpu_dist[nbr] , dist_new);
           gpu_modified_next[nbr]=true;
-          //~ gpu_finished[0] = false;
-          *gpu_finished = false    ;      // nice if we use this way
+          *gpu_finished = false ;
         }
       }
     }
@@ -67,8 +64,7 @@ __global__ void Compute_SSSP_kernel(int * gpu_offset_array , int * gpu_edge_list
 }
   void SSSP(int* offset_array , int* edge_list , int* cpu_edge_weight  , int src ,int V, int E )
 {
-  //~ int MAX_VAL = 2147483647 ; // we do not need this variable!
-  // G or CSR vars
+
   int * gpu_offset_array;
   cudaMalloc(&gpu_offset_array,sizeof(int) *(1+V));
   int * gpu_edge_list;
@@ -90,16 +86,6 @@ __global__ void Compute_SSSP_kernel(int * gpu_offset_array , int * gpu_edge_list
 
   unsigned int block_size=V;
   unsigned int num_blocks=1;
-   //~ if(V <= 1024)    // this can be do with single if
-   //~ {
-    //~ block_size  = V;
-    //~ block_size  = 1; // why do we set block_size repeatedly
-  //~ }
-  //~ else
-  //~ {
-    //~ block_size = 1024;
-    //~ num_blocks = ceil(((float)V) / block_size);
-  //~ }
 
   // Launch Config is ready!
   if ( V > 512 ) {
@@ -107,21 +93,12 @@ __global__ void Compute_SSSP_kernel(int * gpu_offset_array , int * gpu_edge_list
     num_blocks = (V+block_size-1) / block_size; // avoid ceil fun call
   }
 
-  //~ int* dist=new int[V];
-  //~ bool* modified=new bool[V];
-  //~ for (int t = 0; t < V; t ++)
-  //~ {
-    //~ dist[t] = INT_MAX;
-    //~ modified[t] = false;
-  //~ }
-
   // This comes from attach propoety
   initKernel1<bool><<<num_blocks,block_size>>>(V,gpu_modified_prev, false);
   initKernel1<int> <<<num_blocks,block_size>>>(V,gpu_dist, false);
 
 
-  //~ modified[src] = true;
-  //~ dist[src] = 0;          // This comes from DSL
+  // This comes from DSL. Single thread kernel
   initKernel0<int> <<<1,1>>>(gpu_dist, src,0);
   initKernel0<bool> <<<1,1>>>(gpu_modified_prev, src,true);
 
@@ -131,13 +108,10 @@ __global__ void Compute_SSSP_kernel(int * gpu_offset_array , int * gpu_edge_list
   float milliseconds = 0;
   cudaEventRecord(start,0);
 
+  // CSR
   cudaMemcpy (gpu_offset_array  , offset_array    , sizeof(int)   *(1+V), cudaMemcpyHostToDevice);
   cudaMemcpy (gpu_edge_list     , edge_list       , sizeof(int)   *(E)  , cudaMemcpyHostToDevice);
   cudaMemcpy (gpu_edge_weight   , cpu_edge_weight , sizeof(int)   *(E)  , cudaMemcpyHostToDevice);
-
-  //~ cudaMemcpy (gpu_dist          , dist        , sizeof(int)   *(V)  , cudaMemcpyHostToDevice);  // i guess we do not have to do this
-  //~ cudaMemcpy (gpu_finished      , finished    , sizeof(bool) *(1)   , cudaMemcpyHostToDevice); // This gets overwritten in fixed pt init kerkel1 line
-  //~ cudaMemcpy (gpu_modified_prev , modified    , sizeof(bool) *(V)   , cudaMemcpyHostToDevice); // we do not need this
 
 
   // COMES FROM DSL so CPU VARIABLE
@@ -146,24 +120,25 @@ __global__ void Compute_SSSP_kernel(int * gpu_offset_array , int * gpu_edge_list
 
   int k =0; /// We need it only for count iterations
 
-  while ( *finished ) /// *finished should be good
+  while ( *finished )
   {
     //~ finished[0]=true;   /// I guess  we do not need this line overwrritten in memcpy below
     initKernel1<bool> <<< 1, 1>>>(1, gpu_finished, true);
 
-    Compute_SSSP_kernel<<<num_blocks , block_size>>>(gpu_offset_array,gpu_edge_list, gpu_edge_weight ,gpu_dist,/*src,*/ V /*,MAX_VAL*/ , gpu_modified_prev, gpu_modified_next, gpu_finished);
+    Compute_SSSP_kernel<<<num_blocks , block_size>>>(gpu_offset_array,gpu_edge_list, gpu_edge_weight ,gpu_dist, V , gpu_modified_prev, gpu_modified_next, gpu_finished);
 
     initKernel1<bool><<<num_blocks,block_size>>>(V, gpu_modified_prev, false);
 
-    cudaMemcpy(finished, gpu_finished,  sizeof(bool) *(1), cudaMemcpyDeviceToHost); //added this.
+    cudaMemcpy(finished, gpu_finished,  sizeof(bool) *(1), cudaMemcpyDeviceToHost);
 
     bool *tempModPtr  = gpu_modified_next;
     gpu_modified_next = gpu_modified_prev;
     gpu_modified_prev = tempModPtr;
 
     ++k;
-    //~ if(k==V)
+    //~ if(k==V)    // NEED NOT GENERATE. DEBUG Only
     //~ {
+          //~ std::cout<< "THIS SHOULD NEVER HAPPEN" << '\n';
       //~ break;
     //~ }
   }
