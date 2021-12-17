@@ -1,0 +1,19 @@
+<b>Gunrock</b>
+
+SSSP
+
+PR
+./bin/pr market /lfs1/usrscratch/phd/cs20d016/gunrock/dataset/large/soc-sinaweibo/soc-sinaweibo.mtx --delta=0.85 --max-iter=100 --threshold=0.001 --pull=0
+
+TC
+
+<b>LoneStarGPU</b>
+
+SSSP
+
+
+PR
+
+
+TC
+
