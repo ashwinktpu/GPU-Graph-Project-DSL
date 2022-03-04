@@ -5,6 +5,14 @@
 #include <climits>
 #include "graph.hpp"
 
+#define cudaCheckError() {                                             \
+ cudaError_t e=cudaGetLastError();                                     \
+ if(e!=cudaSuccess) {                                                  \
+   printf("Cuda failure %s:%d: '%s'\n",__FILE__,__LINE__,cudaGetErrorString(e)); \
+   exit(0);                                                            \
+ }                                                                     \
+}
+
 // we need to push this inits to our library.cuda file
 template <typename T>
 __global__ void initKernel0(T* init_array, T id, T init_value) { // MOSTLY 1 thread kernel
@@ -13,7 +21,7 @@ __global__ void initKernel0(T* init_array, T id, T init_value) { // MOSTLY 1 thr
 
 
 template <typename T>
-__global__ void initKernel1(unsigned V, T* init_array, T init_value) {
+__global__ void initKernel(unsigned V, T* init_array, T init_value) {
   unsigned id = threadIdx.x + blockDim.x * blockIdx.x;
   if(id < V) {
     init_array[id]=init_value;
@@ -43,11 +51,12 @@ __global__ void Compute_SSSP_kernel(int * gpu_offset_array ,
   if (id < V)
   {
     if (gpu_modified_prev[id] ){
-      int dist_new;
+
       for (int edge = gpu_offset_array[id]; edge < gpu_offset_array[id+1]; edge ++)
       {
         int nbr = gpu_edge_list[edge] ;
         int e = edge;
+        int dist_new;
         if(gpu_dist[id] != INT_MAX)
           dist_new = gpu_dist[v] + gpu_weight[e];
 
@@ -62,9 +71,9 @@ __global__ void Compute_SSSP_kernel(int * gpu_offset_array ,
   }
 
 }
-  void SSSP(int* offset_array , int* edge_list , int* cpu_edge_weight  , int src ,int V, int E )
+  void SSSP(int* offset_array , int* edge_list , int* cpu_edge_weight  , int src ,int V, int E , bool printAns)
 {
-
+  //CSR VARS
   int * gpu_offset_array;
   cudaMalloc(&gpu_offset_array,sizeof(int) *(1+V));
   int * gpu_edge_list;
@@ -92,11 +101,14 @@ __global__ void Compute_SSSP_kernel(int * gpu_offset_array ,
     block_size = 512;
     num_blocks = (V+block_size-1) / block_size; // avoid ceil fun call
   }
-
+  std::cout<< "nBlock:" << num_blocks  << '\n';
+  std::cout<< "threadsPerBlock:" << block_size  << '\n';
   // This comes from attach propoety
-  initKernel1<bool><<<num_blocks,block_size>>>(V,gpu_modified_prev, false);
-  initKernel1<int> <<<num_blocks,block_size>>>(V,gpu_dist, false);
-
+  //~ with two init1
+  //~ initKernel<int> <<<num_blocks,block_size>>>(V,gpu_dist, INT_MAX);
+  //~ initKernel<bool><<<num_blocks,block_size>>>(V,gpu_modified_prev, false);
+  //~ with single init2
+  initKernel2<int,bool> <<<num_blocks,block_size>>>(V,gpu_dist, INT_MAX,gpu_modified_prev, false);
 
   // This comes from DSL. Single thread kernel
   initKernel0<int> <<<1,1>>>(gpu_dist, src,0);
@@ -118,16 +130,15 @@ __global__ void Compute_SSSP_kernel(int * gpu_offset_array ,
   bool* finished = new bool[1];
   *finished = false; // to kick start
 
-  int k =0; /// We need it only for count iterations
-
-  while ( *finished )
+  int k =0; /// We need it only for count iterations attached to FIXED pt
+  while ( !(*finished) )
   {
     //~ finished[0]=true;   /// I guess  we do not need this line overwrritten in memcpy below
-    initKernel1<bool> <<< 1, 1>>>(1, gpu_finished, true);
+    initKernel<bool> <<< 1, 1>>>(1, gpu_finished, true);
 
     Compute_SSSP_kernel<<<num_blocks , block_size>>>(gpu_offset_array,gpu_edge_list, gpu_edge_weight ,gpu_dist, V , gpu_modified_prev, gpu_modified_next, gpu_finished);
 
-    initKernel1<bool><<<num_blocks,block_size>>>(V, gpu_modified_prev, false);
+    initKernel<bool><<<num_blocks,block_size>>>(V, gpu_modified_prev, false);
 
     cudaMemcpy(finished, gpu_finished,  sizeof(bool) *(1), cudaMemcpyDeviceToHost);
 
@@ -136,11 +147,11 @@ __global__ void Compute_SSSP_kernel(int * gpu_offset_array ,
     gpu_modified_prev = tempModPtr;
 
     ++k;
-    //~ if(k==V)    // NEED NOT GENERATE. DEBUG Only
-    //~ {
-          //~ std::cout<< "THIS SHOULD NEVER HAPPEN" << '\n';
-      //~ break;
-    //~ }
+    if(k==V)    // NEED NOT GENERATE. DEBUG Only
+    {
+      std::cout<< "THIS SHOULD NEVER HAPPEN" << '\n';
+      exit(0);
+    }
   }
 
   //STOP TIMER
@@ -149,13 +160,16 @@ __global__ void Compute_SSSP_kernel(int * gpu_offset_array ,
   cudaEventElapsedTime(&milliseconds, start, stop);
   printf("GPU Time: %.6f ms \nIterations:%d\n", milliseconds,k);
 
-  // PRINT THE OUTPUT vars
-  int* dist=new int[V];
-  cudaMemcpy(dist,gpu_dist , sizeof(int) * (V), cudaMemcpyDeviceToHost);
-  for (int i = 0; i <V; i++) {
-    printf("%d %d\n", i, dist[i]);
-  }
+  cudaCheckError()
 
+  // PRINT THE OUTPUT vars
+  if(printAns) {
+    int* dist=new int[V];
+    cudaMemcpy(dist,gpu_dist , sizeof(int) * (V), cudaMemcpyDeviceToHost);
+    for (int i = 0; i <V; i++) {
+      printf("%d %d\n", i, dist[i]);
+    }
+  }
 
   //~ char *outputfilename = "output_generated.txt";
   //~ FILE *outputfilepointer;
@@ -173,6 +187,10 @@ int main(int argc , char ** argv)
 {
   graph G(argv[1]);
   G.parseGraph();
+
+  bool printAns =false;
+  if(argc>2)
+    printAns=true;
 
   int V = G.num_nodes();
 //---------------------------------------//
@@ -224,7 +242,7 @@ int main(int argc , char ** argv)
     //~ float milliseconds = 0;
     //~ cudaEventRecord(start,0);
 
-    SSSP(offset_array,edge_list, cpu_edge_weight ,src, V,E);
+    SSSP(offset_array,edge_list, cpu_edge_weight ,src, V,E,printAns);
     //~ cudaDeviceSynchronize();
 
     //~ cudaEventRecord(stop,0);
