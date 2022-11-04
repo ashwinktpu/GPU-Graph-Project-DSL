@@ -4,7 +4,7 @@
 Important commands to be used-
   </h3>
     
-  ```
+ 
   <ul>
   <li>
   
@@ -14,5 +14,4 @@ Important commands to be used-
   </li>
   </ul>
   
-```
     
